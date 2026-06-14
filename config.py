@@ -44,6 +44,8 @@ MANIFEST_FILE = INDEX_DIR / "manifest.json"
 # The exact phrase the model is told to emit when the answer is not in the docs.
 NOT_FOUND_SENTINEL = "NOT_FOUND"
 REFUSAL_MESSAGE = (
-    "I couldn't find the answer to that in the provided documents. "
-    "Please rephrase your question or make sure the relevant document has been added."
+    "I can only help with questions about Cochin University of Science and "
+    "Technology (CUSAT) and its B.Tech programs — admissions, courses, fees, "
+    "placements, and campus details. I couldn't answer that from the available "
+    "CUSAT information. Please ask a CUSAT B.Tech–related question."
 )

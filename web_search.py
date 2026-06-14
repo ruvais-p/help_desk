@@ -8,6 +8,7 @@ grounded and citable — never hallucinated.
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import requests
@@ -98,12 +99,19 @@ def retrieve_web(query: str, top_k: int | None = None) -> list[dict]:
     if not results:
         return []
 
+    # Fetch candidate pages CONCURRENTLY (a few extra to cover thin/failed
+    # pages), then keep the first WEB_MAX_PAGES that yielded usable text —
+    # preserving search-result order so the most relevant hits win. Fetching in
+    # parallel turns a worst-case 5×timeout sequential wait into ~one timeout.
+    candidates = results[: config.WEB_MAX_PAGES + 4]
+    with ThreadPoolExecutor(max_workers=min(len(candidates), 8)) as pool:
+        texts = list(pool.map(lambda r: _fetch_text(r["url"]), candidates))
+
     chunks: list[dict] = []
     pages_used = 0
-    for r in results:
+    for r, text in zip(candidates, texts):
         if pages_used >= config.WEB_MAX_PAGES:
             break
-        text = _fetch_text(r["url"])
         if not text or len(text) < 200:
             continue
         pages_used += 1

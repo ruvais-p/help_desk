@@ -104,6 +104,16 @@
   }
   .msg-assistant pre code { background: none; padding: 0; }
   .msg-assistant a { color: #7eb6ff; }
+  .msg-assistant table {
+    border-collapse: collapse; margin: 0 0 12px; width: 100%;
+    font-size: .92em; display: block; overflow-x: auto;
+  }
+  .msg-assistant th, .msg-assistant td {
+    border: 1px solid var(--border); padding: 6px 11px;
+    text-align: left; vertical-align: top;
+  }
+  .msg-assistant th { background: #2f2f2f; font-weight: 600; }
+  .msg-assistant tbody tr:nth-child(even) { background: rgba(255,255,255,.03); }
 
   .status-line { color: var(--text-dim); font-style: italic; }
   .refusal { color: var(--text-dim); }
@@ -270,9 +280,33 @@ function renderMarkdown(md) {
   const lines = t.split('\n');
   let html = '', list = null;
   const closeList = () => { if (list) { html += `</${list}>`; list = null; } };
-  for (let raw of lines) {
-    const line = raw.trimEnd();
+  // Markdown table helpers.
+  const cells = ln => ln.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+  const isSep = ln => ln.includes('|') && /^[\s|:-]*-[\s|:-]*$/.test(ln.trim());
+  const nextNB = idx => { while (idx < lines.length && lines[idx].trim() === '') idx++; return idx; };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trimEnd();
     let m;
+    // --- table: a |row| whose next non-blank line is a |---|---| separator ---
+    if (line.trim().startsWith('|')) {
+      const sep = nextNB(i + 1);
+      if (sep < lines.length && isSep(lines[sep])) {
+        closeList();
+        const head = cells(line);
+        const rows = [];
+        let k = nextNB(sep + 1), last = sep;
+        while (k < lines.length && lines[k].trim().startsWith('|') && !isSep(lines[k])) {
+          rows.push(cells(lines[k])); last = k; k = nextNB(k + 1);
+        }
+        html += '<table><thead><tr>' + head.map(h => `<th>${h}</th>`).join('') +
+          '</tr></thead><tbody>' +
+          rows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('') +
+          '</tbody></table>';
+        i = last;
+        continue;
+      }
+    }
     if ((m = line.match(/^\s*#{3}\s+(.*)/))) { closeList(); html += `<h3>${m[1]}</h3>`; }
     else if ((m = line.match(/^\s*#{2}\s+(.*)/))) { closeList(); html += `<h2>${m[1]}</h2>`; }
     else if ((m = line.match(/^\s*#\s+(.*)/))) { closeList(); html += `<h1>${m[1]}</h1>`; }

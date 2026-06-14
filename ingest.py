@@ -75,11 +75,20 @@ def chunk_text(text: str, size: int, overlap: int) -> List[str]:
 
 
 def _manifest_signature() -> dict:
-    """Fingerprint the documents folder so we know when to rebuild."""
+    """Fingerprint the documents folder so we know when to rebuild.
+
+    Uses file size + a content hash (NOT mtime): mtimes change on every git
+    checkout/deploy, which would wrongly invalidate a committed index and force
+    a slow, memory-heavy re-embed on every boot. Content hashing is stable
+    across deploys and only changes when a PDF's bytes actually change.
+    """
     sig = {}
     for pdf in sorted(config.DOCUMENTS_DIR.glob("*.pdf")):
-        stat = pdf.stat()
-        sig[pdf.name] = {"size": stat.st_size, "mtime": int(stat.st_mtime)}
+        data = pdf.read_bytes()
+        sig[pdf.name] = {
+            "size": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+        }
     return sig
 
 
